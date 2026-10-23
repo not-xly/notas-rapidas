@@ -1,6 +1,6 @@
 {
-  "name": "Notas Rápidas",
-  "short_name": "Notas Rápidas",
+  "name": "Notas",
+  "short_name": "Notas",
   "lang": "es",
   "start_url": "./",
   "scope": "./",
