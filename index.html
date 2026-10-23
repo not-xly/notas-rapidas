@@ -21,7 +21,9 @@
     <span class="count" id="count"></span>
   </header>
 
-  <nav class="chips" id="chips" aria-label="Filtrar por categoría"></nav>
+  <div class="filter-bar">
+    <button type="button" class="pill" id="filter-btn" aria-haspopup="listbox" aria-expanded="false">Todas ▾</button>
+  </div>
 
   <main class="main">
     <ul class="list" id="list"></ul>
@@ -29,7 +31,7 @@
   </main>
 
   <form class="composer" id="composer" autocomplete="off">
-    <select id="new-category" aria-label="Categoría de la nota"></select>
+    <button type="button" class="cat-btn" id="new-category" aria-haspopup="listbox" aria-expanded="false">Sin categoría ▾</button>
     <input id="new-text" type="text" placeholder="Captura una idea" enterkeyhint="send"
            autocapitalize="sentences" maxlength="500" aria-label="Nueva nota">
     <button class="send" id="send" type="submit" aria-label="Guardar nota" disabled>
@@ -54,6 +56,9 @@
       <button type="button" class="danger" id="edit-delete">Eliminar nota</button>
     </form>
   </dialog>
+
+  <div class="menu-backdrop" id="menu-backdrop" hidden></div>
+  <div class="menu" id="menu" role="listbox" hidden></div>
 
   <script src="app.js"></script>
 </body>

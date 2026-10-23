@@ -16,19 +16,18 @@
 
   const $ = (id) => document.getElementById(id);
   const el = {
-    count: $('count'), chips: $('chips'), list: $('list'), empty: $('empty'),
-    composer: $('composer'), text: $('new-text'), category: $('new-category'), send: $('send'),
+    count: $('count'), filterBtn: $('filter-btn'), list: $('list'), empty: $('empty'),
+    composer: $('composer'), text: $('new-text'), catBtn: $('new-category'), send: $('send'),
+    menu: $('menu'), backdrop: $('menu-backdrop'),
     sheet: $('sheet'), editForm: $('edit-form'), editText: $('edit-text'),
     editCategory: $('edit-category'), editSave: $('edit-save'),
     editDelete: $('edit-delete'), editCancel: $('edit-cancel'),
   };
 
-  const dateFmt = new Intl.DateTimeFormat('es', {
-    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-  });
-
   let notes = load();
   let filter = '';      // '' = todas, NONE = sin categoría, o nombre de categoría
+  let newCategory = ''; // categoría elegida para la próxima nota ('' = sin categoría)
+  let menuMode = null;  // 'filter', 'composer' o null si el menú está cerrado
   let editingId = null;
   let touch = null;     // estado del gesto táctil en curso
   let suppressClick = false;
@@ -65,23 +64,24 @@
 
   const visibleNotes = () => notes.filter(matchesFilter);
 
-  function renderChips() {
+  const categoryOptions = () => [['', 'Sin categoría'], ...SORTED.map((c) => [c, c])];
+
+  // "Sin categoría" en el filtro solo aparece si hay notas sin categoría
+  function filterOptions() {
     const hasUncategorized = notes.some((n) => !n.category);
-    if (filter === NONE && !hasUncategorized) filter = '';
+    const options = [['', 'Todas'], ...SORTED.map((c) => [c, c])];
+    if (hasUncategorized) options.push([NONE, 'Sin categoría']);
+    return options;
+  }
 
-    const items = [['', 'Todas'], ...SORTED.map((c) => [c, c])];
-    if (hasUncategorized) items.push([NONE, 'Sin categoría']);
+  function renderFilterButton() {
+    if (filter === NONE && !notes.some((n) => !n.category)) filter = '';
+    const label = filter === NONE ? 'Sin categoría' : (filter || 'Todas');
+    el.filterBtn.textContent = `${label} ▾`;
+  }
 
-    el.chips.replaceChildren(...items.map(([value, label]) => {
-      const chip = document.createElement('button');
-      const active = value === filter;
-      chip.type = 'button';
-      chip.className = 'chip' + (active ? ' active' : '');
-      chip.dataset.value = value;
-      chip.textContent = label;
-      chip.setAttribute('aria-pressed', String(active));
-      return chip;
-    }));
+  function renderCategoryButton() {
+    el.catBtn.textContent = `${newCategory || 'Sin categoría'} ▾`;
   }
 
   function buildRow(note) {
@@ -93,17 +93,19 @@
     text.className = 'note-text';
     text.textContent = note.text;
 
-    const meta = document.createElement('span');
-    meta.className = 'note-meta';
-    meta.textContent = [note.category, dateFmt.format(new Date(note.createdAt || 0))]
-      .filter(Boolean).join(' · ');
-
-    li.append(text, meta);
+    li.append(text);
+    if (note.category) {
+      const meta = document.createElement('span');
+      meta.className = 'note-meta';
+      meta.textContent = note.category;
+      li.append(meta);
+    }
     return li;
   }
 
   function render() {
-    renderChips();
+    renderFilterButton();
+    renderCategoryButton();
     const visible = visibleNotes();
     el.list.replaceChildren(...visible.map(buildRow));
     el.count.textContent = visible.length
@@ -116,8 +118,7 @@
   }
 
   function fillCategoryOptions(select) {
-    const options = [['', 'Sin categoría'], ...SORTED.map((c) => [c, c])];
-    select.replaceChildren(...options.map(([value, label]) => new Option(label, value)));
+    select.replaceChildren(...categoryOptions().map(([value, label]) => new Option(label, value)));
   }
 
   // ---------- Captura ----------
@@ -131,7 +132,7 @@
     const text = el.text.value.trim();
     if (!text) return;
 
-    notes.unshift({ id: newId(), text, category: el.category.value, createdAt: Date.now() });
+    notes.unshift({ id: newId(), text, category: newCategory, createdAt: Date.now() });
     el.text.value = '';
     el.send.disabled = true;
     if (!matchesFilter(notes[0])) filter = ''; // que la nota nueva no desaparezca
@@ -142,11 +143,65 @@
 
   // ---------- Filtros ----------
 
-  el.chips.addEventListener('click', (e) => {
-    const chip = e.target.closest('.chip');
-    if (!chip) return;
-    filter = chip.dataset.value;
-    if (filter) el.category.value = filter === NONE ? '' : filter;
+  // Un único desplegable (lista completa, sin desplazarse) para el filtro y para la categoría de la nota
+  function openMenu(mode) {
+    const current = mode === 'filter' ? filter : newCategory;
+    const options = mode === 'filter' ? filterOptions() : categoryOptions();
+    el.menu.replaceChildren(...options.map(([value, label]) => {
+      const item = document.createElement('button');
+      const selected = value === current;
+      item.type = 'button';
+      item.className = 'menu-item' + (selected ? ' selected' : '');
+      item.dataset.value = value;
+      item.textContent = label;
+      item.setAttribute('role', 'option');
+      item.setAttribute('aria-selected', String(selected));
+      return item;
+    }));
+
+    const anchor = (mode === 'filter' ? el.filterBtn : el.catBtn).getBoundingClientRect();
+    if (mode === 'filter') {
+      el.menu.style.top = `${anchor.bottom + 6}px`;
+      el.menu.style.bottom = 'auto';
+    } else {
+      el.menu.style.top = 'auto';
+      el.menu.style.bottom = `${window.innerHeight - anchor.top + 6}px`;
+    }
+
+    menuMode = mode;
+    (mode === 'filter' ? el.filterBtn : el.catBtn).setAttribute('aria-expanded', 'true');
+    el.menu.hidden = false;
+    el.backdrop.hidden = false;
+  }
+
+  function closeMenu() {
+    (menuMode === 'filter' ? el.filterBtn : el.catBtn).setAttribute('aria-expanded', 'false');
+    el.menu.hidden = true;
+    el.backdrop.hidden = true;
+    menuMode = null;
+  }
+
+  function toggleMenu(mode) {
+    const wasOpen = menuMode === mode;
+    closeMenu();
+    if (!wasOpen) openMenu(mode);
+  }
+
+  el.filterBtn.addEventListener('click', () => toggleMenu('filter'));
+  el.catBtn.addEventListener('click', () => toggleMenu('composer'));
+  el.backdrop.addEventListener('click', closeMenu);
+
+  el.menu.addEventListener('click', (e) => {
+    const item = e.target.closest('.menu-item');
+    if (!item) return;
+    const value = item.dataset.value;
+    if (menuMode === 'filter') {
+      filter = value;
+      if (value) newCategory = value === NONE ? '' : value; // la próxima nota hereda el filtro
+    } else {
+      newCategory = value;
+    }
+    closeMenu();
     render();
   });
 
@@ -327,7 +382,6 @@
 
   // ---------- Arranque ----------
 
-  fillCategoryOptions(el.category);
   fillCategoryOptions(el.editCategory);
   render();
 })();

@@ -85,30 +85,65 @@ button {
   font-size: 15px;
 }
 
-/* ---------- Filtros por categoría ---------- */
+/* ---------- Filtro por categoría ---------- */
 
-.chips {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
+[hidden] {
+  display: none !important;
+}
+
+.filter-bar {
   padding: 6px 16px 10px;
-  scrollbar-width: none;
 }
 
-.chips::-webkit-scrollbar {
-  display: none;
-}
-
-.chip {
-  flex: none;
-  padding: 6px 12px;
+.pill {
+  display: inline-block;
+  padding: 7px 14px;
   border-radius: 999px;
   background: var(--fill);
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 600;
   white-space: nowrap;
 }
 
-.chip.active {
+/* ---------- Desplegable de categorías ---------- */
+
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+}
+
+.menu {
+  position: fixed;
+  right: 12px;
+  left: 12px;
+  z-index: 11;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 6px;
+  max-height: 70vh;
+  padding: 8px;
+  overflow-y: auto;
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.menu-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 16px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-item:active {
+  background: var(--fill);
+}
+
+.menu-item.selected {
   background: var(--tint);
   color: #fff;
   font-weight: 600;
@@ -205,14 +240,16 @@ button {
   background: var(--bg);
 }
 
-.composer select {
+.cat-btn {
   flex: none;
-  max-width: 120px;
-  padding: 8px 6px 8px 10px;
-  border: 0;
+  max-width: 130px;
+  padding: 9px 10px;
   border-radius: 10px;
   background: var(--fill);
   font-size: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .composer input {
