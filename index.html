@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Notas Rápidas">
+  <meta name="format-detection" content="telephone=no">
+  <title>Notas Rápidas</title>
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Notas Rápidas</h1>
+    <span class="count" id="count"></span>
+  </header>
+
+  <nav class="chips" id="chips" aria-label="Filtrar por categoría"></nav>
+
+  <main class="main">
+    <ul class="list" id="list"></ul>
+    <p class="empty" id="empty" hidden></p>
+  </main>
+
+  <form class="composer" id="composer" autocomplete="off">
+    <select id="new-category" aria-label="Categoría de la nota"></select>
+    <input id="new-text" type="text" placeholder="Captura una idea" enterkeyhint="send"
+           autocapitalize="sentences" maxlength="500" aria-label="Nueva nota">
+    <button class="send" id="send" type="submit" aria-label="Guardar nota" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 19V5M5 12l7-7 7 7"/>
+      </svg>
+    </button>
+  </form>
+
+  <dialog class="sheet" id="sheet">
+    <form id="edit-form">
+      <div class="sheet-bar">
+        <button type="button" class="link" id="edit-cancel">Cancelar</button>
+        <h2>Editar nota</h2>
+        <button type="submit" class="link strong" id="edit-save">Guardar</button>
+      </div>
+      <textarea id="edit-text" aria-label="Texto de la nota"></textarea>
+      <label class="sheet-row">
+        <span>Categoría</span>
+        <select id="edit-category"></select>
+      </label>
+      <button type="button" class="danger" id="edit-delete">Eliminar nota</button>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

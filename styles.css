@@ -1,0 +1,336 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f2f2f7;
+  --card: #ffffff;
+  --text: #000000;
+  --secondary: #8e8e93;
+  --separator: rgba(60, 60, 67, 0.29);
+  --tint: #007aff;
+  --red: #ff3b30;
+  --fill: #e5e5ea;
+  --shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --card: #1c1c1e;
+    --text: #ffffff;
+    --secondary: #8e8e93;
+    --separator: rgba(84, 84, 88, 0.65);
+    --tint: #0a84ff;
+    --red: #ff453a;
+    --fill: #2c2c2e;
+    --shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+/* ---------- Barra superior ---------- */
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: calc(env(safe-area-inset-top) + 10px) 20px 4px;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.count {
+  color: var(--secondary);
+  font-size: 15px;
+}
+
+/* ---------- Filtros por categoría ---------- */
+
+.chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 6px 16px 10px;
+  scrollbar-width: none;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  flex: none;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--fill);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.chip.active {
+  background: var(--tint);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ---------- Lista de notas ---------- */
+
+.main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.list {
+  position: absolute;
+  top: 0;
+  right: 12px;
+  bottom: 0;
+  left: 12px;
+  margin: 0;
+  padding: 0 0 8px;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 12px;
+}
+
+.list:not(:empty) {
+  background: var(--card);
+}
+
+.note {
+  position: relative;
+  min-height: 56px;
+  padding: 9px 14px;
+  border-bottom: 0.5px solid var(--separator);
+  background: var(--card);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.note:last-child {
+  border-bottom: 0;
+}
+
+.note.dragging {
+  z-index: 2;
+  border-radius: 10px;
+  border-bottom-color: transparent;
+  box-shadow: var(--shadow);
+}
+
+.note-text {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: 16px;
+  line-height: 1.3;
+  word-break: break-word;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.note-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--secondary);
+}
+
+.empty {
+  position: absolute;
+  top: 35%;
+  right: 0;
+  left: 0;
+  margin: 0;
+  padding: 0 32px;
+  text-align: center;
+  font-size: 16px;
+  color: var(--secondary);
+}
+
+/* ---------- Barra de captura inferior ---------- */
+
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  border-top: 0.5px solid var(--separator);
+  background: var(--bg);
+}
+
+.composer select {
+  flex: none;
+  max-width: 120px;
+  padding: 8px 6px 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--fill);
+  font-size: 16px;
+}
+
+.composer input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 14px;
+  border: 0.5px solid var(--separator);
+  border-radius: 18px;
+  background: var(--card);
+  font-size: 16px;
+  outline: none;
+}
+
+.composer input:focus {
+  border-color: var(--tint);
+}
+
+.send {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--tint);
+  color: #fff;
+}
+
+.send:disabled {
+  opacity: 0.35;
+}
+
+.send svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---------- Hoja de edición ---------- */
+
+.sheet {
+  width: min(92vw, 420px);
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.sheet::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.sheet-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid var(--separator);
+}
+
+.sheet-bar h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.link {
+  font-size: 17px;
+  color: var(--tint);
+}
+
+.link.strong {
+  font-weight: 600;
+}
+
+.link:disabled {
+  opacity: 0.35;
+}
+
+.sheet textarea {
+  display: block;
+  width: 100%;
+  min-height: 140px;
+  padding: 14px 16px;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.sheet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-top: 0.5px solid var(--separator);
+  font-size: 16px;
+}
+
+.sheet-row select {
+  max-width: 60%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--tint);
+  font-size: 16px;
+  text-align: right;
+}
+
+.danger {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  border-top: 0.5px solid var(--separator);
+  font-size: 17px;
+  color: var(--red);
+  text-align: center;
+}
