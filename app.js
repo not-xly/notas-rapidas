@@ -166,6 +166,9 @@
     } else {
       el.menu.style.top = 'auto';
       el.menu.style.bottom = `${window.innerHeight - anchor.top + 6}px`;
+      // Fondo opaco hasta la barra de captura: no se ven las notas anteriores
+      el.backdrop.classList.add('solid');
+      el.backdrop.style.bottom = `${window.innerHeight - anchor.top}px`;
     }
 
     menuMode = mode;
@@ -178,6 +181,8 @@
     (menuMode === 'filter' ? el.filterBtn : el.catBtn).setAttribute('aria-expanded', 'false');
     el.menu.hidden = true;
     el.backdrop.hidden = true;
+    el.backdrop.classList.remove('solid');
+    el.backdrop.style.bottom = '';
     menuMode = null;
   }
 

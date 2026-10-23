@@ -113,14 +113,19 @@ button {
   z-index: 10;
 }
 
+/* Al elegir categoría de una nota nueva, tapa las notas que hay detrás */
+.menu-backdrop.solid {
+  background: var(--bg);
+}
+
 .menu {
   position: fixed;
   right: 12px;
   left: 12px;
   z-index: 11;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px 6px;
+  column-count: 2;
+  column-gap: 6px;
+  column-fill: balance;
   max-height: 70vh;
   padding: 8px;
   overflow-y: auto;
@@ -130,6 +135,10 @@ button {
 }
 
 .menu-item {
+  display: block;
+  width: 100%;
+  break-inside: avoid;
+  margin-bottom: 2px;
   padding: 10px 12px;
   border-radius: 8px;
   font-size: 16px;
