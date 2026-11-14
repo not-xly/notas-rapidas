@@ -14,6 +14,10 @@
   const EDGE = 60;             // px desde el borde de la lista que activan el autoscroll
   const SCROLL_STEP = 6;
 
+  const SWIPE_REVEAL = 84;         // px que queda abierto el botón Eliminar
+  const SWIPE_DELETE_RATIO = 0.55; // fracción del ancho a partir de la cual se elimina al soltar
+  const REMOVE_MS = 360;           // duración de la animación de borrado (ver .note.removing)
+
   const $ = (id) => document.getElementById(id);
   const el = {
     count: $('count'), filterBtn: $('filter-btn'), list: $('list'), empty: $('empty'),
@@ -30,6 +34,7 @@
   let menuMode = null;  // 'filter', 'composer' o null si el menú está cerrado
   let editingId = null;
   let touch = null;     // estado del gesto táctil en curso
+  let openRow = null;   // fila con el botón Eliminar descubierto
   let suppressClick = false;
 
   // ---------- Persistencia ----------
@@ -89,29 +94,45 @@
     li.className = 'note';
     li.dataset.id = note.id;
 
+    // Deslizar a la izquierda descubre el botón rojo Eliminar, como en el iPhone
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'swipe-delete';
+    remove.tabIndex = -1;
+    const label = document.createElement('span');
+    label.textContent = 'Eliminar';
+    remove.append(label);
+
+    const front = document.createElement('div');
+    front.className = 'note-front';
+
     const text = document.createElement('p');
     text.className = 'note-text';
     text.textContent = note.text;
 
-    li.append(text);
+    front.append(text);
     if (note.category) {
       const meta = document.createElement('span');
       meta.className = 'note-meta';
       meta.textContent = note.category;
-      li.append(meta);
+      front.append(meta);
     }
+    li.append(remove, front);
     return li;
   }
 
   function render() {
     renderFilterButton();
     renderCategoryButton();
-    const visible = visibleNotes();
-    el.list.replaceChildren(...visible.map(buildRow));
-    el.count.textContent = visible.length
-      ? `${visible.length} ${visible.length === 1 ? 'nota' : 'notas'}`
-      : '';
-    el.empty.hidden = visible.length > 0;
+    openRow = null;
+    el.list.replaceChildren(...visibleNotes().map(buildRow));
+    renderCount();
+  }
+
+  function renderCount() {
+    const count = visibleNotes().length;
+    el.count.textContent = count ? `${count} ${count === 1 ? 'nota' : 'notas'}` : '';
+    el.empty.hidden = count > 0;
     el.empty.textContent = notes.length
       ? 'No hay notas en esta categoría'
       : 'Escribe una idea abajo y pulsa enviar';
@@ -258,11 +279,16 @@
       suppressClick = false;
       return;
     }
+    if (openRow) {
+      if (e.target.closest('.swipe-delete')) removeNote(openRow);
+      else closeSwipe();
+      return;
+    }
     const row = e.target.closest('.note');
     if (row) openEditor(row.dataset.id);
   });
 
-  // ---------- Reordenar: pulsar y arrastrar arriba/abajo ----------
+  // ---------- Gestos: deslizar a la izquierda para eliminar, pulsar y arrastrar para reordenar ----------
 
   el.list.addEventListener('touchstart', onTouchStart, { passive: true });
   el.list.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -276,7 +302,13 @@
       return;
     }
     const row = e.target.closest('.note');
-    if (!row) return;
+    if (openRow && row !== openRow) {
+      // Tocar fuera de la fila abierta solo la cierra
+      closeSwipe();
+      suppressClick = true;
+      return;
+    }
+    if (!row || row.classList.contains('removing')) return;
     const t = e.touches[0];
     touch = {
       row,
@@ -287,20 +319,40 @@
       grabOffset: 0,
       translate: 0,
       frame: 0,
-      timer: setTimeout(startDrag, LONG_PRESS_MS),
+      swiping: false,
+      swipeBase: row === openRow ? -SWIPE_REVEAL : 0,
+      swipeX: 0,
+      timer: row === openRow ? 0 : setTimeout(startDrag, LONG_PRESS_MS),
     };
   }
+
+  // Un toque fuera de la lista también cierra la fila abierta
+  document.addEventListener('touchstart', (e) => {
+    if (openRow && !el.list.contains(e.target)) closeSwipe();
+  }, { passive: true });
 
   function onTouchMove(e) {
     if (!touch) return;
     const t = e.touches[0];
     touch.lastY = t.clientY;
 
+    if (touch.swiping) {
+      if (e.cancelable) e.preventDefault();
+      moveSwipe(t.clientX);
+      return;
+    }
+
     if (!touch.dragging) {
-      // Movimiento antes de la pulsación prolongada: es un scroll normal
-      if (Math.abs(t.clientX - touch.startX) > MOVE_TOLERANCE ||
-          Math.abs(t.clientY - touch.startY) > MOVE_TOLERANCE) {
-        clearTimeout(touch.timer);
+      const dx = t.clientX - touch.startX;
+      const dy = t.clientY - touch.startY;
+      if (Math.abs(dx) <= MOVE_TOLERANCE && Math.abs(dy) <= MOVE_TOLERANCE) return;
+      clearTimeout(touch.timer);
+      // Movimiento antes de la pulsación prolongada: hacia la izquierda (o sobre la fila
+      // ya abierta) es deslizar para eliminar; cualquier otro es un scroll normal
+      if (Math.abs(dx) > Math.abs(dy) && (dx < 0 || touch.swipeBase)) {
+        if (e.cancelable) e.preventDefault();
+        startSwipe(t.clientX);
+      } else {
         touch = null;
       }
       return;
@@ -308,6 +360,66 @@
 
     e.preventDefault(); // evita que la lista se desplace mientras arrastras
     moveDrag(t.clientY);
+  }
+
+  function startSwipe(x) {
+    touch.swiping = true;
+    touch.startX = x; // la fila empieza a moverse desde aquí, sin salto
+    touch.swipeX = touch.swipeBase;
+    suppressClick = true;
+    touch.row.classList.add('swiping');
+  }
+
+  function moveSwipe(x) {
+    const { row } = touch;
+    touch.swipeX = Math.max(-row.offsetWidth, Math.min(0, touch.swipeBase + x - touch.startX));
+    setSwipeOffset(row, touch.swipeX);
+  }
+
+  // Un deslizamiento corto deja abierto el botón Eliminar; uno largo elimina directamente
+  function finishSwipe(cancelled) {
+    const { row, swipeX } = touch;
+    row.classList.remove('swiping');
+    if (!cancelled && swipeX < -row.offsetWidth * SWIPE_DELETE_RATIO) {
+      removeNote(row);
+    } else if (swipeX < -SWIPE_REVEAL / 2) {
+      setSwipeOffset(row, -SWIPE_REVEAL);
+      openRow = row;
+    } else {
+      closeSwipe(row);
+    }
+  }
+
+  function setSwipeOffset(row, x) {
+    const button = row.querySelector('.swipe-delete');
+    // Pasado el umbral de borrado, el texto salta al borde izquierdo para avisar
+    const full = x < -row.offsetWidth * SWIPE_DELETE_RATIO;
+    row.querySelector('.note-front').style.transform = x ? `translate3d(${x}px, 0, 0)` : '';
+    button.style.width = `${-x}px`;
+    button.firstChild.style.transform = full ? `translate3d(${x + SWIPE_REVEAL}px, 0, 0)` : '';
+  }
+
+  function closeSwipe(row = openRow) {
+    setSwipeOffset(row, 0);
+    if (openRow === row) openRow = null;
+  }
+
+  function removeNote(row) {
+    notes = notes.filter((n) => n.id !== row.dataset.id);
+    save();
+    if (openRow === row) openRow = null;
+
+    // La fila sale por la izquierda y después se pliega
+    row.style.height = `${row.getBoundingClientRect().height}px`;
+    row.classList.add('removing');
+    setSwipeOffset(row, -row.offsetWidth);
+    row.getBoundingClientRect(); // fija la altura de partida antes de animarla
+    row.style.height = '0';
+    setTimeout(() => {
+      row.remove();
+      if (el.list.children.length) renderCount();
+      else render(); // lista vacía: puede tocar cambiar de filtro o mostrar el aviso
+    }, REMOVE_MS);
   }
 
   function startDrag() {
@@ -355,10 +467,11 @@
     touch.frame = requestAnimationFrame(autoScrollLoop);
   }
 
-  function endTouch() {
+  function endTouch(e) {
     if (!touch) return;
     clearTimeout(touch.timer);
     if (touch.dragging) finishDrag();
+    if (touch.swiping) finishSwipe(!e || e.type !== 'touchend');
     touch = null;
   }
 
