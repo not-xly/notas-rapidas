@@ -204,11 +204,35 @@ button {
 .note-front {
   position: relative;
   z-index: 1;
+  display: flex;
   flex: 1;
+  align-items: center;
   min-width: 0;
-  padding: 9px 14px;
+  padding-left: 14px;
   background: var(--card);
   transition: transform 0.2s ease;
+}
+
+.note-body {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 0;
+}
+
+/* Asa de arrastre: touch-action evita que el dedo haga scroll mientras arrastras */
+.grip {
+  flex: none;
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  color: var(--secondary);
+  touch-action: none;
+}
+
+.grip svg {
+  width: 18px;
+  height: 18px;
 }
 
 .swipe-delete {

@@ -4,9 +4,11 @@
   const STORAGE_KEY = 'notas-rapidas-v1';
   const NONE = '__none__'; // filtro "Sin categoría"
   const CATEGORIES = [
-    'Trabajo', 'Música', 'Series', 'Restaurante', 'Vino', 'Viaje', 'Libros',
+    'Trabajo', 'Música', 'Series', 'Restaurante', 'Bebidas/Comidas', 'Viaje', 'Libros',
     'App/Internet', 'Gestión', 'Personas', 'Deportes', 'Ocio', 'Compras', 'Idiomas',
   ];
+  // Categorías que cambiaron de nombre: las notas guardadas pasan al nombre nuevo al cargar
+  const RENAMED = new Map([['Vino', 'Bebidas/Comidas']]);
   const SORTED = [...CATEGORIES].sort(new Intl.Collator('es').compare);
 
   const LONG_PRESS_MS = 350;   // pulsación prolongada para empezar a mover
@@ -17,6 +19,11 @@
   const SWIPE_REVEAL = 84;         // px que queda abierto el botón Eliminar
   const SWIPE_DELETE_RATIO = 0.55; // fracción del ancho a partir de la cual se elimina al soltar
   const REMOVE_MS = 360;           // duración de la animación de borrado (ver .note.removing)
+
+  const GRIP_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+    [[9, 6], [15, 6], [9, 12], [15, 12], [9, 18], [15, 18]]
+      .map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.6" fill="currentColor"/>`).join('') +
+    '</svg>';
 
   const $ = (id) => document.getElementById(id);
   const el = {
@@ -43,7 +50,9 @@
     try {
       const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (Array.isArray(data)) {
-        return data.filter((n) => n && typeof n.id === 'string' && typeof n.text === 'string');
+        return data
+          .filter((n) => n && typeof n.id === 'string' && typeof n.text === 'string')
+          .map((n) => (RENAMED.has(n.category) ? { ...n, category: RENAMED.get(n.category) } : n));
       }
     } catch (_) { /* datos corruptos: se empieza vacío */ }
     return [];
@@ -106,17 +115,27 @@
     const front = document.createElement('div');
     front.className = 'note-front';
 
+    const body = document.createElement('div');
+    body.className = 'note-body';
+
     const text = document.createElement('p');
     text.className = 'note-text';
     text.textContent = note.text;
 
-    front.append(text);
+    body.append(text);
     if (note.category) {
       const meta = document.createElement('span');
       meta.className = 'note-meta';
       meta.textContent = note.category;
-      front.append(meta);
+      body.append(meta);
     }
+
+    // Asa de la derecha: se arrastra arriba o abajo para ordenar
+    const grip = document.createElement('span');
+    grip.className = 'grip';
+    grip.innerHTML = GRIP_ICON;
+
+    front.append(body, grip);
     li.append(remove, front);
     return li;
   }
@@ -288,7 +307,8 @@
     if (row) openEditor(row.dataset.id);
   });
 
-  // ---------- Gestos: deslizar a la izquierda para eliminar, pulsar y arrastrar para reordenar ----------
+  // ---------- Gestos: deslizar a la izquierda para eliminar; arrastrar el asa (o mantener
+  // pulsada la nota) y mover arriba/abajo para reordenar ----------
 
   el.list.addEventListener('touchstart', onTouchStart, { passive: true });
   el.list.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -310,8 +330,11 @@
     }
     if (!row || row.classList.contains('removing')) return;
     const t = e.touches[0];
+    const grip = row !== openRow && !!e.target.closest('.grip');
     touch = {
       row,
+      grip,
+      decided: false, // desde el asa: ya se sabe si el gesto es ordenar o eliminar
       startX: t.clientX,
       startY: t.clientY,
       lastY: t.clientY,
@@ -322,8 +345,9 @@
       swiping: false,
       swipeBase: row === openRow ? -SWIPE_REVEAL : 0,
       swipeX: 0,
-      timer: row === openRow ? 0 : setTimeout(startDrag, LONG_PRESS_MS),
+      timer: row === openRow || grip ? 0 : setTimeout(startDrag, LONG_PRESS_MS),
     };
+    if (grip) startDrag(); // el asa mueve la nota al instante, sin pulsación prolongada
   }
 
   // Un toque fuera de la lista también cierra la fila abierta
@@ -342,14 +366,17 @@
       return;
     }
 
+    const dx = t.clientX - touch.startX;
+    const dy = t.clientY - touch.startY;
+    const moved = Math.abs(dx) > MOVE_TOLERANCE || Math.abs(dy) > MOVE_TOLERANCE;
+    const leftwards = Math.abs(dx) > Math.abs(dy) && (dx < 0 || touch.swipeBase);
+
     if (!touch.dragging) {
-      const dx = t.clientX - touch.startX;
-      const dy = t.clientY - touch.startY;
-      if (Math.abs(dx) <= MOVE_TOLERANCE && Math.abs(dy) <= MOVE_TOLERANCE) return;
+      if (!moved) return;
       clearTimeout(touch.timer);
       // Movimiento antes de la pulsación prolongada: hacia la izquierda (o sobre la fila
       // ya abierta) es deslizar para eliminar; cualquier otro es un scroll normal
-      if (Math.abs(dx) > Math.abs(dy) && (dx < 0 || touch.swipeBase)) {
+      if (leftwards) {
         if (e.cancelable) e.preventDefault();
         startSwipe(t.clientX);
       } else {
@@ -358,7 +385,16 @@
       return;
     }
 
-    e.preventDefault(); // evita que la lista se desplace mientras arrastras
+    if (e.cancelable) e.preventDefault(); // evita que la lista se desplace mientras arrastras
+    // Desde el asa también se puede deslizar a la izquierda para eliminar
+    if (touch.grip && !touch.decided && moved) {
+      touch.decided = true;
+      if (leftwards) {
+        cancelDrag();
+        startSwipe(t.clientX);
+        return;
+      }
+    }
     moveDrag(t.clientY);
   }
 
@@ -429,6 +465,13 @@
     touch.grabOffset = touch.lastY - touch.row.getBoundingClientRect().top;
     touch.row.classList.add('dragging');
     autoScrollLoop();
+  }
+
+  function cancelDrag() {
+    cancelAnimationFrame(touch.frame);
+    touch.dragging = false;
+    touch.row.classList.remove('dragging');
+    touch.row.style.transform = '';
   }
 
   function moveDrag(y) {
